@@ -5,6 +5,8 @@ set.seed(6)
 
 library(tidyverse)
 library(rstan)
+library(parallel)
+library(loo)
 
 source("1_Data.Cleaning.R")
 
@@ -28,7 +30,26 @@ stan_dat <- list(N = nrow(fec_dat),
 
 # Fitting candidate models ------------------------------------------------
 
+LotB <- stan(file = file.path("Stan_Mods", "LotB.stan"), 
+             data = stan_dat, chains = 2, cores = detectCores())
+
+LotUB <- stan(file = file.path("Stan_Mods", "LotUB.stan"), 
+             data = stan_dat, chains = 2, cores = detectCores())
+
+# JC: Lotka-Volterra models aren't running...
+# initializing in regions that generate negative expected values for negBinom
+# I've solved this in the past with binding lambda to be > 25
+
+BevB <- stan(file = file.path("Stan_Mods", "BevB.stan"), 
+             data = stan_dat, chains = 2, cores = detectCores())
+
+RickB <- stan(file = file.path("Stan_Mods", "RickB.stan"), 
+             data = stan_dat, chains = 2, cores = detectCores())
+
+RickUB <- stan(file = file.path("Stan_Mods", "RickUB.stan"), 
+             data = stan_dat, chains = 2, cores = detectCores())
+
 # Model comparison --------------------------------------------------------
 
-
-
+loo_compare(#loo(LotB), loo(lotUB), 
+            loo(BevB), loo(RickB), loo(RickUB))

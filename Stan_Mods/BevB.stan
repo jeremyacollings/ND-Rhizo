@@ -16,7 +16,7 @@ data {
 
 
 parameters {
-  real<lower=25> lam[S,R,E]; // pop lambda per treatment
+  real<lower=0> lam[S,R,E]; // pop lambda per treatment
   real<lower=0> phi[S]; // dispersion for lambda per species
   real<lower=0> alpha[S,C,R,E]; // pop alpha per comp per treatment
 }
