@@ -7,18 +7,38 @@ library(tidyverse)
 
 source("1_Data.Cleaning.R")
 
-ggplot(data = fec_dat) + 
-  geom_histogram(aes(x = fit, fill = sp), position = "identity", 
-                 alpha = .6) + 
+fec_dat$sp2 <- ifelse(fec_dat$sp == "A", "LB", 
+                        ifelse(fec_dat$sp == "B", "AA", "CG"))
+
+
+# Fitness Plots -----------------------------------------------------------
+
+## Fitness ~ Treatments ---------------------------------------------------
+
+# all
+
+ggplot(data = fec_dat, aes(x = nitrogen, y = log(fit), color = rhizobia)) + 
+  geom_jitter(position = position_jitterdodge()) + geom_boxplot() + facet_grid(~ sp2) + 
   theme_classic()
 
-ggplot(data = fec_dat, aes(x = nitrogen, y = fit, color = rhizobia)) + 
-  geom_jitter(position = position_jitterdodge()) + geom_boxplot() + facet_grid(~ sp) + 
+ggplot(data = fec_dat, aes(x = rhizobia, y = log(fit), color = nitrogen)) + 
+  geom_jitter(position = position_jitterdodge()) + geom_boxplot() + facet_grid(~ sp2) + 
   theme_classic()
 
-ggplot(data = fec_dat, aes(x = rhizobia, y = fit, color = nitrogen)) + 
-  geom_jitter(position = position_jitterdodge()) + geom_boxplot() + facet_grid(~ sp) + 
+# just alones
+
+ggplot(data = fec_dat[which(fec_dat$density == "alone"),], 
+       aes(x = nitrogen, y = log(fit), color = rhizobia)) + 
+  geom_jitter(position = position_jitterdodge()) + geom_boxplot() + facet_grid(~ sp2) + 
   theme_classic()
+
+ggplot(data = fec_dat[which(fec_dat$density == "alone"),], 
+       aes(x = rhizobia, y = log(fit), color = nitrogen)) + 
+  geom_jitter(position = position_jitterdodge()) + geom_boxplot() + facet_grid(~ sp2) + 
+  theme_classic()
+
+
+## Fitness ~ Competition --------------------------------------------------
 
 # these figs are simplified looks into the data and should not
 # perfectly reflect the models we'll fit
@@ -60,3 +80,22 @@ for(foc in c("A", "B", "C")){
 }
 
 fec_plots
+
+# Mortality ---------------------------------------------------------------
+
+fec_dat %>%
+  group_by(nitrogen, rhizobia, sp2) %>%
+  summarise(mort.rate = sum(fit == 0)/length(fit)) %>%
+  ggplot(aes(x = nitrogen, y = mort.rate, color = rhizobia)) + 
+  geom_point(position = position_dodge(width = 1), size = 2) + 
+  facet_grid(~ sp2)
+
+fec_dat[which(fec_dat$density == "alone"),] %>%
+  group_by(nitrogen, rhizobia, sp2) %>%
+  summarise(mort.rate = sum(fit == 0)/length(fit)) %>%
+  ggplot(aes(x = nitrogen, y = mort.rate, color = rhizobia)) + 
+  geom_point(position = position_dodge(width = 1), size = 2) + 
+  facet_grid(~ sp2)
+
+
+
