@@ -4,7 +4,11 @@
 set.seed(6)
 
 library(tidyverse)
+library(tidybayes)
 library(scales)
+
+
+# Bring in data -----------------------------------------------------------
 
 output_list <- read_rds(file.path("RDS_Files", "output_list.RDS"))
 
@@ -23,6 +27,8 @@ germ_array <- array(as.numeric(unlist(germ_df)), dim = c(nrow(germ_df), 3))
 mort <- readRDS(file.path("RDS_Files", "mort.RDS"))
 mort_df <- as.data.frame(mort)[,grepl("m", names(as.data.frame(mort)))]
 mort_array <- array(as.numeric(unlist(mort_df)), dim = c(nrow(mort_df), 3, 2, 2))
+
+# Calculate contrasts -----------------------------------------------------
 
 get_contrasts <- function(exp, cont, sp.dims){
   contrast <- exp - cont
@@ -61,8 +67,6 @@ par.df <- cbind(rbind(get_contrasts(lams_array[,,2,], lams_array[,,1,], 2),
       treatment = c(rep(c("rhizo", "nitro", "inter"), each = 4),
                     rep(c("rhizo", "nitro", "inter"), each = 10),
                     rep(c("rhizo", "nitro", "inter"), each = 4)))
-
-par.df[which(par.df$pd > .8 | par.df$pd < .2),]
 
 # Godoy et al. 2014 Calculations
 
@@ -108,6 +112,194 @@ spaak.df <- cbind(rbind(get_contrasts(output_list[[5]][,,,2,], output_list[[1]][
       treatment = rep(rep(c("rhizo", "nitro", "inter"), each = 10), 2))
 
 spaak.df <- spaak.df[which(spaak.df$sp != spaak.df$comp),]
+
+## Check significant contrasts --------------------------------------------
+
+conf.cutoff <- .2
+
+par.df[which(par.df$pd > 1-conf.cutoff | par.df$pd < 0+conf.cutoff),]
+god.df[which(god.df$pd > 1-conf.cutoff | god.df$pd < 0+conf.cutoff),]
+spaak.df[which(spaak.df$pd > 1-conf.cutoff | spaak.df$pd < 0+conf.cutoff),]
+
+# Figures -----------------------------------------------------------------
+
+## Parameter estimate figures ---------------------------------------------
+
+# Intrinsic Growth Rates
+
+RickUB %>%
+  spread_draws(lam[f,r,n]) %>%
+  ggplot(aes(x = as.factor(n), y = lam, color = as.factor(r))) + 
+  stat_summary(fun.min = function(z) { quantile(z,0.025) },
+               fun.max = function(z) { quantile(z,0.975) },
+               fun = median, geom = "pointrange", 
+               position = position_dodge(width = 1)) + 
+  facet_wrap(~ f, labeller = labeller(f = c("1" = "AA", "2" = "CG", "3" = "LP"))) + 
+  theme_classic(base_size = 15) + ylab("Intrinsic Growth Rate") + 
+  scale_color_manual(name = "Rhizobia", labels = c("Unninoculated", "Innoculated"), 
+                     values = c("#F5E663", "#84069D")) + 
+  scale_x_discrete(name = "Nitrogen", labels = c("Control", "Addition"))
+
+# Species Interactions
+
+RickUB %>%
+  spread_draws(alpha[f,c,r,n]) %>%
+  ggplot(aes(x = as.factor(n), y = alpha, color = as.factor(r))) + 
+  stat_summary(fun.min = function(z) { quantile(z,0.025) },
+               fun.max = function(z) { quantile(z,0.975) },
+               fun = median, geom = "pointrange", 
+               position = position_dodge(width = 1)) + 
+  facet_wrap(c ~ f, labeller = labeller(c = c("1" = "cAA", "2" = "cCG", "3" = "cLP"), 
+                                        f = c("1" = "fAA", "2" = "fCG", "3" = "fLP")), 
+             scales = "free") + 
+  geom_hline(yintercept = 0, linetype = "dashed") + 
+  theme_classic(base_size = 15) + ylab("Species Interaction") + 
+  scale_color_manual(name = "Rhizobia", labels = c("Unninoculated", "Innoculated"), 
+                     values = c("#F5E663", "#84069D")) + 
+  scale_x_discrete(name = "Nitrogen", labels = c("Control", "Addition"))
+
+# Mortality Rate
+
+mort %>%
+  spread_draws(m[f,r,n]) %>%
+  ggplot(aes(x = as.factor(n), y = m, color = as.factor(r))) + 
+  stat_summary(fun.min = function(z) { quantile(z,0.025) },
+               fun.max = function(z) { quantile(z,0.975) },
+               fun = median, geom = "pointrange", 
+               position = position_dodge(width = 1)) + 
+  facet_wrap(~ f, labeller = labeller(f = c("1" = "AA", "2" = "CG", "3" = "LP"))) + 
+  theme_classic(base_size = 15) + ylab("Mortality Rate") + 
+  scale_color_manual(name = "Rhizobia", labels = c("Unninoculated", "Innoculated"), 
+                     values = c("#F5E663", "#84069D")) + 
+  scale_x_discrete(name = "Nitrogen", labels = c("Control", "Addition"))
+
+# Godoy et al. Niche Differences
+
+cbind.data.frame(med = c(apply(output_list[["NDg"]], c(2,3,4,5), median)),
+                 low = c(apply(output_list[["NDg"]], c(2,3,4,5), quantile, 0.025)),
+                 up = c(apply(output_list[["NDg"]], c(2,3,4,5), quantile, 0.975)), 
+                 f = rep(c("AA", "CG", "LP"), 3*2*2), 
+                 c = rep(rep(c("AA", "CG", "LP"), each = 3), 2*2), 
+                 r = rep(rep(c("uninoc", "inoc"), each = 3*3), 2), 
+                 n = rep(c("cont", "add"), each = 3*3*2)) %>%
+  filter(f != c) %>%
+  ggplot(aes(x = n, y = med, ymin = low, ymax = up, color = r)) + 
+  geom_pointrange(position = position_dodge(width = 1)) + 
+  facet_wrap(c ~ f, labeller = labeller(c = c("AA" = "cAA", "CG" = "cCG", "LP" = "cLP"), 
+                                        f = c("AA" = "fAA", "CG" = "fCG", "LP" = "fLP")), 
+             scales = "free") + 
+  theme_classic(base_size = 15) + ylab("Niche Differences (Godoy)") + 
+  scale_color_manual(name = "Rhizobia", labels = c("Unninoculated", "Innoculated"), 
+                     values = c("#F5E663", "#84069D")) + 
+  scale_y_continuous(trans = pseudo_log_trans()) + 
+  scale_x_discrete(name = "Nitrogen", labels = c("Control", "Addition"))
+
+# Godoy et al. Fitness Differences
+
+cbind.data.frame(med = c(apply(output_list[["FIg"]], c(2,3,4,5), median)),
+                 low = c(apply(output_list[["FIg"]], c(2,3,4,5), quantile, 0.025)),
+                 up = c(apply(output_list[["FIg"]], c(2,3,4,5), quantile, 0.975)), 
+                 f = rep(c("AA", "CG", "LP"), 3*2*2), 
+                 c = rep(rep(c("AA", "CG", "LP"), each = 3), 2*2), 
+                 r = rep(rep(c("uninoc", "inoc"), each = 3*3), 2), 
+                 n = rep(c("cont", "add"), each = 3*3*2)) %>%
+  filter(f != c) %>%
+  ggplot(aes(x = n, y = med, ymin = low, ymax = up, color = r)) + 
+  geom_pointrange(position = position_dodge(width = 1)) + 
+  facet_wrap(c ~ f, labeller = labeller(c = c("AA" = "cAA", "CG" = "cCG", "LP" = "cLP"), 
+                                        f = c("AA" = "fAA", "CG" = "fCG", "LP" = "fLP")), 
+             scales = "free") + 
+  theme_classic(base_size = 15) + ylab("Fitness Differences (Godoy)") + 
+  scale_color_manual(name = "Rhizobia", labels = c("Unninoculated", "Innoculated"), 
+                     values = c("#F5E663", "#84069D")) + 
+  scale_y_continuous(trans = pseudo_log_trans()) + 
+  scale_x_discrete(name = "Nitrogen", labels = c("Control", "Addition"))
+
+# Competitive Ratio
+
+cbind.data.frame(med = c(apply(output_list[["CR"]], c(2,3,4,5), median)),
+                 low = c(apply(output_list[["CR"]], c(2,3,4,5), quantile, 0.025)),
+                 up = c(apply(output_list[["CR"]], c(2,3,4,5), quantile, 0.975)), 
+                 f = rep(c("AA", "CG", "LP"), 3*2*2), 
+                 c = rep(rep(c("AA", "CG", "LP"), each = 3), 2*2), 
+                 r = rep(rep(c("uninoc", "inoc"), each = 3*3), 2), 
+                 n = rep(c("cont", "add"), each = 3*3*2)) %>%
+  filter(f != c) %>%
+  ggplot(aes(x = n, y = med, ymin = low, ymax = up, color = r)) + 
+  geom_pointrange(position = position_dodge(width = 1)) + 
+  facet_wrap(c ~ f, labeller = labeller(c = c("AA" = "cAA", "CG" = "cCG", "LP" = "cLP"), 
+                                        f = c("AA" = "fAA", "CG" = "fCG", "LP" = "fLP")), 
+             scales = "free") + 
+  theme_classic(base_size = 15) + ylab("Competitive Ratio") + 
+  scale_color_manual(name = "Rhizobia", labels = c("Unninoculated", "Innoculated"), 
+                     values = c("#F5E663", "#84069D")) + 
+  scale_y_continuous(trans = pseudo_log_trans()) + 
+  scale_x_discrete(name = "Nitrogen", labels = c("Control", "Addition"))
+
+# Demographic Ratio
+
+cbind.data.frame(med = c(apply(output_list[["DR"]], c(2,3,4,5), median)),
+                 low = c(apply(output_list[["DR"]], c(2,3,4,5), quantile, 0.025)),
+                 up = c(apply(output_list[["DR"]], c(2,3,4,5), quantile, 0.975)), 
+                 f = rep(c("AA", "CG", "LP"), 3*2*2), 
+                 c = rep(rep(c("AA", "CG", "LP"), each = 3), 2*2), 
+                 r = rep(rep(c("uninoc", "inoc"), each = 3*3), 2), 
+                 n = rep(c("cont", "add"), each = 3*3*2)) %>%
+  filter(f != c) %>%
+  ggplot(aes(x = n, y = med, ymin = low, ymax = up, color = r)) + 
+  geom_pointrange(position = position_dodge(width = 1)) + 
+  facet_wrap(c ~ f, labeller = labeller(c = c("AA" = "cAA", "CG" = "cCG", "LP" = "cLP"), 
+                                        f = c("AA" = "fAA", "CG" = "fCG", "LP" = "fLP")), 
+             scales = "free") + 
+  theme_classic(base_size = 15) + ylab("Demographic Ratio") + 
+  scale_color_manual(name = "Rhizobia", labels = c("Unninoculated", "Innoculated"), 
+                     values = c("#F5E663", "#84069D")) + 
+  scale_y_continuous(trans = pseudo_log_trans()) + 
+  scale_x_discrete(name = "Nitrogen", labels = c("Control", "Addition"))
+
+# Spaak & De Laender Niche Differences
+
+cbind.data.frame(med = c(apply(output_list[["NDs"]], c(2,3,4,5), median, na.rm = TRUE)),
+                 low = c(apply(output_list[["NDs"]], c(2,3,4,5), quantile, 0.025, na.rm = TRUE)),
+                 up = c(apply(output_list[["NDs"]], c(2,3,4,5), quantile, 0.975, na.rm = TRUE)), 
+                 f = rep(c("AA", "CG", "LP"), 3*2*2), 
+                 c = rep(rep(c("AA", "CG", "LP"), each = 3), 2*2), 
+                 r = rep(rep(c("uninoc", "inoc"), each = 3*3), 2), 
+                 n = rep(c("cont", "add"), each = 3*3*2)) %>%
+  filter(f != c) %>%
+  ggplot(aes(x = n, y = med, ymin = low, ymax = up, color = r)) + 
+  geom_pointrange(position = position_dodge(width = 1)) + 
+  facet_wrap(c ~ f, labeller = labeller(c = c("AA" = "cAA", "CG" = "cCG", "LP" = "cLP"), 
+                                        f = c("AA" = "fAA", "CG" = "fCG", "LP" = "fLP")), 
+             scales = "free") + 
+  theme_classic(base_size = 15) + ylab("Niche Differences (Spaak)") + 
+  scale_color_manual(name = "Rhizobia", labels = c("Unninoculated", "Innoculated"), 
+                     values = c("#F5E663", "#84069D")) + 
+  scale_y_continuous(trans = pseudo_log_trans()) + 
+  scale_x_discrete(name = "Nitrogen", labels = c("Control", "Addition"))
+
+# Spaak & De Laender Fitness Differences
+
+cbind.data.frame(med = c(apply(output_list[["FIs"]], c(2,3,4,5), median, na.rm = TRUE)),
+                 low = c(apply(output_list[["FIs"]], c(2,3,4,5), quantile, 0.025, na.rm = TRUE)),
+                 up = c(apply(output_list[["FIs"]], c(2,3,4,5), quantile, 0.975, na.rm = TRUE)), 
+                 f = rep(c("AA", "CG", "LP"), 3*2*2), 
+                 c = rep(rep(c("AA", "CG", "LP"), each = 3), 2*2), 
+                 r = rep(rep(c("uninoc", "inoc"), each = 3*3), 2), 
+                 n = rep(c("cont", "add"), each = 3*3*2)) %>%
+  filter(f != c) %>%
+  ggplot(aes(x = n, y = med, ymin = low, ymax = up, color = r)) + 
+  geom_pointrange(position = position_dodge(width = 1)) + 
+  facet_wrap(c ~ f, labeller = labeller(c = c("AA" = "cAA", "CG" = "cCG", "LP" = "cLP"), 
+                                        f = c("AA" = "fAA", "CG" = "fCG", "LP" = "fLP")), 
+             scales = "free") + 
+  theme_classic(base_size = 15) + ylab("Fitness Differences (Spaak)") + 
+  scale_color_manual(name = "Rhizobia", labels = c("Unninoculated", "Innoculated"), 
+                     values = c("#F5E663", "#84069D")) + 
+  scale_y_continuous(trans = pseudo_log_trans()) + 
+  scale_x_discrete(name = "Nitrogen", labels = c("Control", "Addition"))
+
+## Contrast figures -------------------------------------------------------
 
 par.df %>% 
   filter(metric == "lambda") %>%
