@@ -48,8 +48,8 @@ spaak.samps <- cbind.data.frame(ND = c(output_list[['NDs']][samps,,,,]),
                               FI = c(output_list[['FIs']][samps,,,,]), 
                               foc = rep(rep(c("AA", "CG", "LP"), each = 100), 3*2*2), 
                               comp = rep(rep(c("AA", "CG", "LP"), each = 100*3), 2*2), 
-                              rhizo = rep(rep(c("cont", "add"), each = 100*3*3), 2), 
-                              nitro = rep(c("uninoc", "inoc"), each = 100*3*3*2))
+                              rhizo = rep(rep(c("uninoc", "inoc"), each = 100*3*3), 2), 
+                              nitro = rep(c("cont", "add"), each = 100*3*3*2))
 spaak.samps$pair <- interaction(do.call(pmin, spaak.samps[,c("foc", "comp")]), 
                                do.call(pmax, spaak.samps[,c("foc", "comp")]))
 spaak.samps$treat <- paste(spaak.samps$rhizo, spaak.samps$nitro)
@@ -93,24 +93,28 @@ counter = 1
 pairs = c()
 for(i in 1:2){
   for(j in (i+1):3){
-    coex[counter,,,] <- ifelse(persist[,i,j,,] & persist[,j,i,,], 
-                               1, ifelse(persist[,i,j,,] & !persist[,j,i,,], 
-                                         2, ifelse(!persist[,i,j,,] & persist[,j,i,,], 
-                                                   3, ifelse(!persist[,i,j,,] & !persist[,j,i,,], 4, NA))))
+    coex[counter,,,] <- ifelse(persist[,i,j,,] & persist[,j,i,,],  # coexistence = 1
+                               1, ifelse(persist[,i,j,,] & !persist[,j,i,,], # i excludes j = 2
+                                         2, ifelse(!persist[,i,j,,] & persist[,j,i,,], # j excludes i = 3
+                                                   3, ifelse(!persist[,i,j,,] & !persist[,j,i,,], 4, NA))))  # pe = 4
     counter <- counter + 1
     pairs = c(pairs, paste(i,j, sep = "."))
   }
 }
 
+# what proportion of samples are predicted to coexiste?
 apply(coex, c(1,3,4), function(x) sum(x == 1, na.rm = TRUE)/
         length(x))
 
+# what proportion of samples are predicted to exclude?
 apply(coex, c(1,3,4), function(x) sum(x %in% c(2,3), na.rm = TRUE)/
         length(x))
 
+# what proportion of samples are predicted to experience priority effects?
 apply(coex, c(1,3,4), function(x) sum(x == 4, na.rm = TRUE)/
         length(x))
 
+# what proportion of samples are NA?
 apply(coex, c(1,3,4), function(x) sum(is.na(x))/
         length(x))
 
