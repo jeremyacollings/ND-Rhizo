@@ -22,7 +22,7 @@ stan_dat <- list(N = nrow(fec_dat),
                  R = length(unique(fec_dat$rhizobia)), 
                  r = ifelse(fec_dat$rhizobia == "sterile", 1, 2),
                  E = length(unique(fec_dat$nitrogen)), 
-                 e = ifelse(fec_dat$nitrogen == "zero nitrogen", 1, 2), 
+                 eu = ifelse(fec_dat$nitrogen == "zero nitrogen", 1, 2), 
                  sp = ifelse(fec_dat$sp == "B", 1, 
                              ifelse(fec_dat$sp == "C", 2, 3)), 
                  AA = fec_dat$B_comp, CG = fec_dat$C_comp, LB = fec_dat$A_comp, 
@@ -42,16 +42,34 @@ stan_dat3 <- list(N = nrow(fec_dat), S = n_distinct(fec_dat$sp),
 
 # Fitting model ------------------------------------------------
 
+# unbound ricker
 RickUB <- stan(file = file.path("Stan_Mods", "fit_RickUB.stan"), 
-             data = stan_dat, chains = 4, cores = detectCores())
+               data = stan_dat, chains = 4, cores = detectCores(), 
+               pars = c("lam", "alpha"))
 
 saveRDS(RickUB, file = file.path("RDS_Files", "fit_RickUB.RDS"))
 
+# partially bound ricker
+RickPB <- stan(file = file.path("Stan_Mods", "fit_RickPB.stan"), 
+             data = stan_dat, chains = 4, cores = detectCores(), 
+             pars = c("lam", "alpha"))
+
+saveRDS(RickPB, file = file.path("RDS_Files", "fit_RickPB.RDS"))
+
+# bound ricker
+RickB <- stan(file = file.path("Stan_Mods", "fit_RickB.stan"), 
+               data = stan_dat, chains = 4, cores = detectCores(), 
+               pars = c("lam", "alpha"))
+
+saveRDS(RickB, file = file.path("RDS_Files", "fit_RickB.RDS"))
+
+# germination rate model
 GermMod <- stan(file = file.path("Stan_Mods", "germ.stan"), 
                 data = stan_dat2, chains = 4, cores = detectCores())
  
 saveRDS(GermMod, file = file.path("RDS_Files", "germ.RDS"))    
 
+# mortality rate model
 MortMod <- stan(file = file.path("Stan_Mods", "mort.stan"), 
                 data = stan_dat3, chains = 4, cores = detectCores())
 

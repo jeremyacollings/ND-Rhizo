@@ -6,7 +6,7 @@ data {
   int R; // number of rhizobial treatments
   int r[N]; // rhizobial treatment
   int E; // number of nitrogen treatments
-  int e[N]; // nitrogen treatment
+  int eu[N]; // nitrogen treatment
   int sp[N]; // sp of focal plant
   int AA[N]; // number of CA comps
   int CG[N]; // number of CG comps
@@ -22,11 +22,13 @@ parameters {
 }
 
 transformed parameters {
-  real mu[N]; //
+  real mu[N]; // expected fitness
+
+  // calculate expected fitness
 for(n in 1:N){
-  mu[n] = lam[sp[n], r[n], e[n]]*exp(-(alpha[sp[n], 1, r[n], e[n]]*AA[n] + 
-  alpha[sp[n], 2, r[n], e[n]]*CG[n] + 
-  alpha[sp[n], 3, r[n], e[n]]*LB[n]));
+  mu[n] = lam[sp[n], r[n], eu[n]]*exp(-(alpha[sp[n], 1, r[n], eu[n]]*AA[n] + 
+  alpha[sp[n], 2, r[n], eu[n]]*CG[n] + 
+  alpha[sp[n], 3, r[n], eu[n]]*LB[n]));
   }
 }
 
@@ -35,10 +37,10 @@ model {
   // priors
   for(spp in 1:S){
     for(rh in 1:R){
-      for(eu in 1:E){
-        lam[spp,rh,eu] ~ normal(250, 100);
+      for(eut in 1:E){
+        lam[spp,rh,eut] ~ normal(250, 100);
         for(co in 1:C){
-          alpha[spp,co,rh,eu] ~ normal(0, 1);
+          alpha[spp,co,rh,eut] ~ normal(0, 1);
         }
         }
         }
