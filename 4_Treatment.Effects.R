@@ -111,7 +111,7 @@ spaak.df <- cbind(rbind(get_contrasts(output_list[[5]][,,,2,], output_list[[1]][
       metric = rep(c("ND", "FI"), each = 30), 
       treatment = rep(rep(c("rhizo", "nitro", "inter"), each = 10), 2))
 
-spaak.df <- spaak.df[which(spaak.df$sp != spaak.df$comp),]
+spaak.df <- spaak.df[which(spaak.df$sp != spaak.df$comp | spaak.df$sp == "total"),]
 
 ## Check significant contrasts --------------------------------------------
 
