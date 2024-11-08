@@ -13,38 +13,28 @@ py_numpy_available()
 # loads the relevant python code
 source_python("numerical_NFD.py")
 
-RickUB <- readRDS(file.path("RDS_Files", "fit_RickUB.RDS"))
+RickB <- readRDS(file.path("RDS_Files", "fit_RickB.RDS"))
+RickPB <- readRDS(file.path("RDS_Files", "fit_RickPB.RDS"))
 germ <- readRDS(file.path("RDS_Files", "germ.RDS"))
-
-# Calculate ND and FD -----------------------------------------------------
-
-# extract posterior samples from stanfit objects & put 'em in arrays
-
-lams_df <- as.data.frame(RickUB)[,grepl("lam", names(as.data.frame(RickUB)))]
-lams_array <- array(as.numeric(unlist(lams_df)), dim = c(nrow(lams_df), 3, 2, 2))
-
-alphas_df <- as.data.frame(RickUB)[,grepl("alpha", names(as.data.frame(RickUB)))]
-alphas_array <- array(as.numeric(unlist(alphas_df)), dim = c(nrow(lams_df), 3, 3, 2, 2))
-# Godoy et al. (2014) ND & FI is undefined for any facilitation
-# so replace facilitation with very slight competition
-alphas_array2 <- alphas_array; alphas_array2[which(alphas_array2 <= 0)] <- 1*10^-5
 
 germ_df <- as.data.frame(germ)[,grepl("g", names(as.data.frame(germ)))]
 germ_array <- array(as.numeric(unlist(germ_df)), dim = c(nrow(germ_df), 3))
 
-# growth model for Spaak & De Laender (2021) calculations
-growth_mod <- function(N,g, lam, A){
-  return(log((1 - g) + (g*lam*exp(-(A%*%(g*N))))))
-  }
+# Godoy et al. 2014 metrics -----------------------------------------------
+
+lams_df <- as.data.frame(RickB)[,grepl("lam", names(as.data.frame(RickB)))]
+lams_array <- array(as.numeric(unlist(lams_df)), dim = c(nrow(lams_df), 3, 2, 2))
+
+alphas_df <- as.data.frame(RickB)[,grepl("alpha", names(as.data.frame(RickB)))]
+alphas_array <- array(as.numeric(unlist(alphas_df)), dim = c(nrow(lams_df), 3, 3, 2, 2))
 
 # initialize arrays to store metrics 
 NDg <- CR1 <- CR2 <- CR <- DR1 <- DR2 <- DR <- FIg <- array(NA, dim = c(nrow(lams_df), 3, 3, 2, 2))
-NDs <- FIs <- array(NA, dim = c(nrow(lams_df), 3, 3, 2, 2))
+
 for(i in 1:3){
   for(j in 1:3){
-    # Calculate Godoy et al. 2014 ND & FI
-    CR1[,i,j,,] <- sqrt((alphas_array2[,j,i,,]*alphas_array2[,j,j,,])/(alphas_array2[,i,i,,]*alphas_array2[,i,j,,]))
-    CR2[,i,j,,] <- sqrt((alphas_array2[,i,i,,]*alphas_array2[,i,j,,])/(alphas_array2[,j,i,,]*alphas_array2[,j,j,,]))
+    CR1[,i,j,,] <- sqrt((alphas_array[,j,i,,]*alphas_array[,j,j,,])/(alphas_array[,i,i,,]*alphas_array[,i,j,,]))
+    CR2[,i,j,,] <- sqrt((alphas_array[,i,i,,]*alphas_array[,i,j,,])/(alphas_array[,j,i,,]*alphas_array[,j,j,,]))
     DR1[,i,j,,] <- (germ_array[,i]*lams_array[,i,,])/(germ_array[,j]*lams_array[,j,,])
     DR2[,i,j,,] <- (germ_array[,j]*lams_array[,j,,])/(germ_array[,i]*lams_array[,i,,])
     FIg[,i,j,,] <- ifelse(DR1[,i,j,,]*CR1[,i,j,,] > DR2[,i,j,,]*CR2[,i,j,,], 
@@ -53,8 +43,27 @@ for(i in 1:3){
                          CR1[,i,j,,], CR2[,i,j,,])
     DR[,i,j,,] <- ifelse(DR1[,i,j,,]*CR1[,i,j,,] > DR2[,i,j,,]*CR2[,i,j,,],
                          DR1[,i,j,,], DR2[,i,j,,])
-    NDg[,i,j,,] <- 1 - sqrt((alphas_array2[,i,j,,]*alphas_array2[,j,i,,])/
-                              (alphas_array2[,i,i,,]*alphas_array2[,j,j,,]))
+    NDg[,i,j,,] <- 1 - sqrt((alphas_array[,i,j,,]*alphas_array[,j,i,,])/
+                              (alphas_array[,i,i,,]*alphas_array[,j,j,,]))
+  }
+}
+
+# Spaak & De Laender 2020 metrics -----------------------------------------
+
+lams_df <- as.data.frame(RickPB)[,grepl("lam", names(as.data.frame(RickPB)))]
+lams_array <- array(as.numeric(unlist(lams_df)), dim = c(nrow(lams_df), 3, 2, 2))
+
+alphas_df <- as.data.frame(RickPB)[,grepl("alpha", names(as.data.frame(RickPB)))]
+alphas_array <- array(as.numeric(unlist(alphas_df)), dim = c(nrow(lams_df), 3, 3, 2, 2))
+
+growth_mod <- function(N,g, lam, A){
+  return(log((1 - g) + (g*lam*exp(-(A%*%(g*N))))))
+  }
+
+# initialize arrays to store metrics 
+NDs <- FIs <- array(NA, dim = c(nrow(lams_df), 3, 3, 2, 2))
+for(i in 1:3){
+  for(j in 1:3){
     for(r in 1:2){
       for(n in 1:2){
         for(iter in 1:dim(alphas_array)[1]){
