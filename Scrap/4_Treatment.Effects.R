@@ -7,13 +7,29 @@ library(tidyverse)
 library(tidybayes)
 library(scales)
 
+colors <- c("#FA9F42", "#2B4162", "#B02E0C")
 
 # Bring in data -----------------------------------------------------------
 
 output_list <- read_rds(file.path("RDS_Files", "output_list.RDS"))
 
 # extract posterior samples from stanfit objects & put 'em in arrays
+
 RickUB <- readRDS(file.path("RDS_Files", "fit_RickUB.RDS"))
+lams <- RickUB %>%
+  spread_draws(lam[s,r,e])
+
+alphas <- RickUB %>%
+  spread_draws(alpha[s,c,r,e])
+
+germ <- readRDS(file.path("RDS_Files", "germ.RDS"))
+germ_rates <- germ %>%
+  spread_draws(g[s])
+
+mort <- readRDS(file.path("RDS_Files", "mort.RDS"))
+mort_rates <- mort %>%
+  spread_draws(m[s,r,e])
+
 lams_df <- as.data.frame(RickUB)[,grepl("lam", names(as.data.frame(RickUB)))]
 lams_array <- array(as.numeric(unlist(lams_df)), dim = c(nrow(lams_df), 3, 2, 2))
 
@@ -136,9 +152,12 @@ RickUB %>%
                position = position_dodge(width = 1)) + 
   facet_wrap(~ f, labeller = labeller(f = c("1" = "AA", "2" = "CG", "3" = "LP"))) + 
   theme_classic(base_size = 15) + ylab("Intrinsic Growth Rate") + 
-  scale_color_manual(name = "Rhizobia", labels = c("Unninoculated", "Innoculated"), 
-                     values = c("#F5E663", "#84069D")) + 
-  scale_x_discrete(name = "Nitrogen", labels = c("Control", "Addition"))
+  scale_color_manual(name = "Rhizobia", labels = c("Unninoculated", "Inoculated"), 
+                     values = colors) + 
+  scale_x_discrete(name = "Nitrogen", labels = c("Control", "Fertilized"))
+
+ggsave(file.path("Figures", "Demographic_Parameters", "lambda.pdf"), 
+       width = 8, height = 6, units = "in")
 
 # Species Interactions
 
@@ -155,8 +174,11 @@ RickUB %>%
   geom_hline(yintercept = 0, linetype = "dashed") + 
   theme_classic(base_size = 15) + ylab("Species Interaction") + 
   scale_color_manual(name = "Rhizobia", labels = c("Unninoculated", "Innoculated"), 
-                     values = c("#F5E663", "#84069D")) + 
-  scale_x_discrete(name = "Nitrogen", labels = c("Control", "Addition"))
+                     values = colors) + 
+  scale_x_discrete(name = "Nitrogen", labels = c("Control", "Fertilized"))
+
+ggsave(file.path("Figures", "Demographic_Parameters", "alphas.pdf"), 
+       width = 8, height = 6, units = "in")
 
 # Mortality Rate
 
@@ -170,8 +192,11 @@ mort %>%
   facet_wrap(~ f, labeller = labeller(f = c("1" = "AA", "2" = "CG", "3" = "LP"))) + 
   theme_classic(base_size = 15) + ylab("Mortality Rate") + 
   scale_color_manual(name = "Rhizobia", labels = c("Unninoculated", "Innoculated"), 
-                     values = c("#F5E663", "#84069D")) + 
-  scale_x_discrete(name = "Nitrogen", labels = c("Control", "Addition"))
+                     values = colors) + 
+  scale_x_discrete(name = "Nitrogen", labels = c("Control", "Fertilized"))
+
+ggsave(file.path("Figures", "Demographic_Parameters", "mort.pdf"), 
+       width = 8, height = 6, units = "in")
 
 # Godoy et al. Niche Differences
 
