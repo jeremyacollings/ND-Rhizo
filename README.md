@@ -1,0 +1,10 @@
+Analysis of Nitrogen-Dependent Rhizobia Impacts on Species Coexistence (ND-Rhizo) (Patel et al.)
+
+Scripts Include: 
+- __functions.R__: A handful of functions used to process and visualize data.
+- __1_Data.Cleaning__: Code to bring in raw data files and clean 'em up.
+- __1.5_Exploratory.Viz__: Code to do some exploratory data vizualization, including raw seed output graphs across treatment and different competitive gradients as well as raw mortality data across treatments.
+- __2_Fitting.Models__: Code to fit demographic models using cleaned data and store fitted models as RDS files. Models include Ricker models for seed output where interactions are either bound or unbound to be competitive as well as models to estimate germination and mortality rates. All parameters aside from germination rates are estimated seperately for both levels of both experimental treatments.
+- __3_Demographic.Parameters__: Code to extract draws from posterior distribution of intrinsic growth rates (AKA lambda), germination rates, mortality rates, and species interactions (AKA alpha), calculate contrast distributions for treatment effects on these parameters (not relevant for germination rate), and visualize posterior distributions and contrast distributions. Also includes code to generate network diagrams across the four possible treatment combinations and code to compare interaction estimates between the bound and unbound Ricker models. 
+- __4_Derived.Metrics__: Code to calculate and visualize competitive metrics (competitive ratios, demographic ratios, niche differences, and fitness differences) and contrast distributions for treatment effects on these quantities. Note that this code also calculates the categorical coexistence results used in __5_Competitive.Outcomes__.
+- __5_Competitive.Outcomes__: Code to get the probability of each competitive outcome across species pairs and treatments, to get the probability that treatments switch competitive outcomes, and to visualize coexistence results.
